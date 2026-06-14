@@ -1,5 +1,5 @@
 const App = (function () {
-  let resumeEl, pageScroll, tplSelect, accentInput, fontSelect, densitySelect, uiLangSelect, zoomLabel, pagesEl, themeToggle, workspaceEl, toggleEditorBtn, settingsModal;
+  let resumeEl, pageScroll, tplSelect, accentInput, fontSelect, densitySelect, uiLangSelect, zoomLabel, pagesEl, themeToggle, workspaceEl, toggleEditorBtn;
   let profileModal = null;
   let zoomMode = 'fit';
   let currentScale = 1;
@@ -8,6 +8,12 @@ const App = (function () {
   let editorHidden = false;
   const PAGE_W = 794;
   const PAGE_H = 1123;
+  const PAGE_NUM_BOTTOM = 36;
+  const SIDE_PANEL_WRAP = {
+    duotone: '.du-wrap',
+    sidebar: '.sb-wrap',
+    portfolio: '.pf-wrap'
+  };
   const THEME_KEY = 'cv_generator_ui_theme';
   const UI_TEXT = {
     zh: {
@@ -134,15 +140,61 @@ const App = (function () {
       ' font-' + (d.meta.font || 'serif') +
       ' density-' + (d.meta.density || 'normal');
     resumeEl.style.setProperty('--accent', d.meta.accent || '#3d4a5c');
+    resumeEl.style.minHeight = '';
     resumeEl.innerHTML = tpl.render(d);
-    updatePageInfo();
+    syncResumePageLayout();
   }
 
-  function updatePageInfo() {
-    if (!pagesEl) return;
+  function sidePanelWrap() {
+    const template = Store.data && Store.data.meta && Store.data.meta.template;
+    const selector = SIDE_PANEL_WRAP[template];
+    return selector ? resumeEl.querySelector(selector) : null;
+  }
 
-    const trueH = resumeEl.offsetHeight;
-    const pages = Math.max(1, Math.ceil((trueH - 4) / PAGE_H));
+  function renderPageNumbers(pages) {
+    let box = resumeEl.querySelector('.resume-page-nums');
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'resume-page-nums';
+      box.setAttribute('aria-hidden', 'true');
+      resumeEl.appendChild(box);
+    }
+    box.innerHTML = '';
+    if (pages <= 1) return;
+    for (let i = 0; i < pages; i++) {
+      const el = document.createElement('span');
+      el.className = 'resume-page-num';
+      el.textContent = `${i + 1} / ${pages}`;
+      el.style.top = `${(i + 1) * PAGE_H - PAGE_NUM_BOTTOM}px`;
+      box.appendChild(el);
+    }
+  }
+
+  function syncResumePageLayout() {
+    if (!resumeEl) return;
+    resumeEl.style.minHeight = '';
+    const wrap = sidePanelWrap();
+    if (wrap) wrap.style.minHeight = '';
+
+    requestAnimationFrame(() => {
+      const trueH = resumeEl.scrollHeight;
+      const pages = Math.max(1, Math.ceil(trueH / PAGE_H));
+      const paddedH = pages * PAGE_H;
+      if (paddedH > trueH) {
+        resumeEl.style.minHeight = `${paddedH}px`;
+        if (wrap) wrap.style.minHeight = `${paddedH}px`;
+      }
+      renderPageNumbers(pages);
+      updatePageInfo(pages);
+    });
+  }
+
+  function updatePageInfo(pages) {
+    if (!pagesEl) return;
+    if (pages == null) {
+      const trueH = resumeEl ? resumeEl.offsetHeight : 0;
+      pages = Math.max(1, Math.ceil(trueH / PAGE_H));
+    }
     if (pages <= 1) {
       pagesEl.textContent = text('onePage');
       pagesEl.classList.remove('over');
@@ -335,7 +387,6 @@ const App = (function () {
     const byId = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
     byId('btnImport', text('import'));
     byId('btnSave', text('save'));
-    byId('btnSettings', text('settings'));
     byId('btnProfile', text('profile'));
     byId('btnPrint', 'PDF');
     byId('btnAI', 'AI');
@@ -351,49 +402,8 @@ const App = (function () {
     const zoomFit = document.getElementById('zoomFit');
     if (zoomFit) zoomFit.textContent = text('fit');
     if (zoomLabel && zoomMode === 'fit') zoomLabel.textContent = text('fit');
-    const settingsTitle = document.getElementById('settingsTitle');
-    if (settingsTitle) settingsTitle.textContent = text('settingsTitle');
-    const settingsClose = document.querySelector('[data-settings-close]');
-    if (settingsClose) settingsClose.title = text('close');
     updatePageInfo();
     document.dispatchEvent(new CustomEvent('cv:langchange', { detail: { lang } }));
-  }
-
-  function ensureSettingsModal() {
-    if (settingsModal) return settingsModal;
-    const controls = document.querySelector('.toolbar-controls');
-    settingsModal = document.createElement('div');
-    settingsModal.id = 'settingsModal';
-    settingsModal.className = 'settings-modal';
-    settingsModal.hidden = true;
-    settingsModal.innerHTML = `
-      <div class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
-        <div class="settings-head">
-          <div>
-            <div class="profile-dialog-kicker">Settings</div>
-            <h2 id="settingsTitle">${text('settingsTitle')}</h2>
-          </div>
-          <button type="button" class="icon-btn" data-settings-close title="${text('close')}">×</button>
-        </div>
-        <div class="settings-body"></div>
-      </div>`;
-    document.body.appendChild(settingsModal);
-    settingsModal.querySelector('.settings-body').appendChild(controls);
-    controls.classList.add('in-settings');
-    settingsModal.addEventListener('click', (e) => {
-      if (e.target === settingsModal || e.target.closest('[data-settings-close]')) closeSettings();
-    });
-    return settingsModal;
-  }
-
-  function openSettings() {
-    ensureSettingsModal();
-    settingsModal.hidden = false;
-    applyUiLanguage();
-  }
-
-  function closeSettings() {
-    if (settingsModal) settingsModal.hidden = true;
   }
 
   function defaultJSONName() {
@@ -1010,7 +1020,6 @@ const App = (function () {
     themeToggle = document.getElementById('themeToggle');
     zoomLabel = document.getElementById('zoomLabel');
     pagesEl = document.getElementById('pvPages');
-    ensureSettingsModal();
 
     renderTemplateOptions();
 
@@ -1034,7 +1043,6 @@ const App = (function () {
     initTheme();
 
     document.getElementById('btnExport').addEventListener('click', exportJSON);
-    document.getElementById('btnSettings').addEventListener('click', openSettings);
     document.getElementById('btnProfile').addEventListener('click', openProfileModal);
     document.getElementById('btnSave').addEventListener('click', saveJSON);
     document.getElementById('btnImport').addEventListener('click', importJSONFromPicker);

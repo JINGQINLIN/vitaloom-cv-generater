@@ -620,6 +620,18 @@ const AI = (function () {
     return parseJsonContent(content);
   }
 
+  function currentYearContextLines() {
+    const year = new Date().getFullYear();
+    return [
+      `当前日期语境：今天是 ${year} 年。`,
+      '日期判断规则：',
+      '- 结束时间写「至今」「现在」「present」「current」「Now」或留空，表示仍在进行，不是未来时间，也不是错误。',
+      `- 起始年为 ${year} 且结束为「至今」或等效表述，表示当前在职/在读，完全合理。`,
+      '- 不要把「YYYY-至今」在起始年≤当前年时判为时间冲突、未来时间或逻辑错误。',
+      '- 只有明确晚于当前年的起止时间（如结束年在未来且无「至今」类表述）才可提示时间风险。'
+    ];
+  }
+
   function providerSystemPrompt(outputLang) {
     return [
       'You edit structured resume JSON for VitaLoom. Return valid JSON only—no markdown, no text outside JSON.',
@@ -631,7 +643,8 @@ const AI = (function () {
       '- Translate and parse faithfully: natural, professional wording; preserve meaning without hype or compression.',
       '- Optimize and score objectively: specific, balanced, evidence-based. Avoid generic praise, fear-mongering, or buzzwords.',
       `- User-facing explanations (reason, summary, comments, dimension names) must be in ${outputLang}.`,
-      '- proposal text must stay in the same language as the original field. Switching resume language is not an optimization.'
+      '- proposal text must stay in the same language as the original field. Switching resume language is not an optimization.',
+      '- Date checks use the current calendar year from the task rules. "至今"/"present"/empty end means ongoing—not a future date or conflict when start year ≤ current year.'
     ].join('\n');
   }
 
@@ -680,6 +693,7 @@ const AI = (function () {
         '',
         'Task: suggest field-level resume improvements. This is not translation.',
         'Rules:',
+        ...currentYearContextLines(),
         `- Write section, reason, and priority labels for the user in ${payload.outputLang}.`,
         '- One suggestion per real dot path in the JSON (e.g. experience.0.description).',
         '- original: verbatim excerpt from that field. proposal: a drop-in rewrite in the same language as original.',
@@ -696,6 +710,7 @@ const AI = (function () {
       '',
       'Task: score the resume' + (payload.jobDescription ? ' against the job description' : '') + '.',
       'Rules:',
+      ...currentYearContextLines(),
       `- All user-facing text must be in ${payload.outputLang}.`,
       '- Score only what is present. Be fair, specific, and calibrated—not flattering or harsh without cause.',
       '- overall score 0–100: 85+ strong and ready with minor polish; 70–84 solid with clear gaps; 55–69 needs meaningful revision; below 55 major gaps.',

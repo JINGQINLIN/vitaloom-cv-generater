@@ -1,6 +1,7 @@
 import json
 import mimetypes
 import os
+from datetime import date
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -49,6 +50,20 @@ def parse_json_content(text):
         if first >= 0 and last > first:
             return json.loads(raw[first : last + 1])
         raise ValueError("AI response was not valid JSON.")
+
+
+def current_year_context():
+    year = date.today().year
+    return "\n".join(
+        [
+            f"当前日期语境：今天是 {year} 年。",
+            "日期判断规则：",
+            "- 结束时间写「至今」「现在」「present」「current」「Now」或留空，表示仍在进行，不是未来时间，也不是错误。",
+            f"- 起始年为 {year} 且结束为「至今」或等效表述，表示当前在职/在读，完全合理。",
+            "- 不要把「YYYY-至今」在起始年≤当前年时判为时间冲突、未来时间或逻辑错误。",
+            "- 只有明确晚于当前年的起止时间（如结束年在未来且无「至今」类表述）才可提示时间风险。",
+        ]
+    )
 
 
 def task_prompt(task, body):
@@ -113,6 +128,7 @@ def task_prompt(task, body):
                 "任务：给出逐字段优化建议（不是翻译）。",
                 f"当前简历主体语言：{resume_lang_name}。面向用户的 section、reason 使用 {output_lang}。",
                 "规则：",
+                current_year_context(),
                 "- 每条建议对应 JSON 中一个真实 dot path（如 experience.0.description）。",
                 "- original 为该字段原文摘录；proposal 为可直接替换的改写，且必须与 original 同语言。",
                 "- 优先改进：结构更清晰、证据更具体、措辞更精炼、层级更合理；如有 JD，兼顾岗位匹配。",
@@ -133,6 +149,7 @@ def task_prompt(task, body):
                 f"任务：对简历进行客观评分{scope}。",
                 f"所有面向用户的文字使用 {output_lang}。",
                 "规则：",
+                current_year_context(),
                 "- 只评价现有内容，公正、具体、有依据，不空夸也不无依据苛责。",
                 "- 总分 0–100：85+ 整体扎实、仅需微调；70–84 可用但有明显短板；55–69 需较大幅度修改；55 以下信息或表达缺口较大。",
                 f"- 维度：清晰度（结构与可读性）、影响力（证据与成果）、岗位匹配{role_fit}。",
@@ -158,7 +175,7 @@ def call_ai(task, body):
         "messages": [
             {
                 "role": "system",
-                "content": "你为 VitaLoom 简历编辑器输出严格 JSON，不要 Markdown，不要 JSON 外的说明。只依据输入内容判断；不编造事实；隐私字段缺失不算问题。优化与评分应具体、平衡、客观；proposal 必须与原字段同语言；不要把切换语言当作优化建议。解释性文字使用请求中的 outputLang。",
+                "content": "你为 VitaLoom 简历编辑器输出严格 JSON，不要 Markdown，不要 JSON 外的说明。只依据输入内容判断；不编造事实；隐私字段缺失不算问题。优化与评分应具体、平衡、客观；proposal 必须与原字段同语言；不要把切换语言当作优化建议。解释性文字使用请求中的 outputLang。日期判断以提示中的当前年份为准；「至今」「present」表示进行中，起始年等于当前年时不是未来时间或时间冲突。",
             },
             {"role": "user", "content": task_prompt(task, body)},
         ],
