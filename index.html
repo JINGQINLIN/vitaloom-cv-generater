@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VitaLoom</title>
+  <link rel="stylesheet" href="assets/css/app.css?v=20260613j" />
+  <link rel="stylesheet" href="assets/css/resume.css?v=20260613j" />
+</head>
+<body>
+  <div class="app">
+
+    <header class="toolbar">
+      <div class="brand">
+        <span class="brand-mark"></span>
+        <span class="brand-name">VitaLoom</span>
+      </div>
+
+      <div class="toolbar-controls">
+        <label class="field-inline">
+          <span class="field-lab">模板</span>
+          <select id="tplSelect" class="ctl"></select>
+        </label>
+
+        <div class="field-inline">
+          <span class="field-lab">配色</span>
+          <div class="swatches" id="accentSwatches"></div>
+          <label class="color-wrap" title="自定义颜色">
+            <input type="color" id="accentInput" value="#3d4a5c" />
+          </label>
+        </div>
+
+        <label class="field-inline">
+          <span class="field-lab">字体</span>
+          <select id="fontSelect" class="ctl">
+            <option value="serif">衬线</option>
+            <option value="sans">无衬线</option>
+          </select>
+        </label>
+
+        <label class="field-inline">
+          <span class="field-lab">间距</span>
+          <select id="densitySelect" class="ctl">
+            <option value="relaxed">舒朗</option>
+            <option value="normal">适中</option>
+            <option value="compact">紧凑</option>
+          </select>
+        </label>
+
+        <label class="field-inline field-inline-compact language-field" title="界面语言 / Language">
+          <select id="uiLangSelect" class="ctl">
+            <option value="en" selected>EN</option>
+            <option value="zh">中文</option>
+          </select>
+        </label>
+
+        <button class="theme-toggle" id="themeToggle" type="button" title="切换深色模式">深色</button>
+      </div>
+
+      <div class="toolbar-actions">
+        <div class="toolbar-group">
+          <button class="btn" id="btnSettings">设置</button>
+        </div>
+        <div class="toolbar-group">
+          <button class="btn" id="btnImport">导入</button>
+          <button class="btn" id="btnSave">保存</button>
+          <button class="btn" id="btnExport">JSON</button>
+        </div>
+        <div class="toolbar-group">
+          <button class="btn" id="btnProfile">个人主页</button>
+          <button class="btn btn-primary" id="btnPrint">PDF</button>
+          <button class="btn" id="btnAI">AI</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="editor-pane">
+        <div class="editor-tools">
+          <div>
+            <div class="editor-tools-title">编辑区</div>
+            <div class="editor-tools-sub">点击板块可定位预览</div>
+          </div>
+          <div class="editor-tools-actions">
+            <button class="btn btn-sm" id="btnToggleEditor" type="button">收起填写栏</button>
+            <button class="btn btn-sm" id="btnExpandAll" type="button">全部展开</button>
+            <button class="btn btn-sm" id="btnCollapseAll" type="button">全部收起</button>
+          </div>
+        </div>
+        <div id="editorPane"></div>
+      </section>
+
+      <div class="splitter" id="splitter" title="拖动调整宽度"></div>
+
+      <section class="preview-pane">
+        <div class="preview-toolbar">
+          <span class="pv-label">实时预览</span>
+          <div class="pv-zoom">
+            <button class="zoom-btn" id="zoomOut" title="缩小">−</button>
+            <span id="zoomLabel">适应</span>
+            <button class="zoom-btn" id="zoomIn" title="放大">+</button>
+            <button class="zoom-btn" id="zoomFit" title="适应宽度">适应</button>
+          </div>
+          <span class="pv-pages" id="pvPages" title="按 A4 估算的页数"></span>
+        </div>
+        <div class="page-scroll" id="pageScroll">
+          <div id="resume" class="resume"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <input type="file" id="jsonFile" accept="application/json,.json" hidden />
+
+  <script src="assets/js/schema.js?v=20260613j"></script>
+  <script src="assets/js/store.js?v=20260613j"></script>
+  <script src="assets/js/templates.js?v=20260613j"></script>
+  <script src="assets/js/editor.js?v=20260613j"></script>
+  <script src="assets/js/app.js?v=20260613j"></script>
+  <script src="assets/js/ai.js?v=20260613j"></script>
+</body>
+</html>
