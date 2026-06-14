@@ -1010,7 +1010,7 @@ const AI = (function () {
     }
     if (btn.dataset.aiAction === 'apply-translation') {
       if (!pendingResume) return;
-      Store.replace(pendingResume);
+      Store.replace(pendingResume, { preserveUiLang: true });
       App.renderAll();
       pendingResume = null;
       backToSetup();
@@ -1028,7 +1028,7 @@ const AI = (function () {
     }
     if (btn.dataset.aiAction === 'apply-fill') {
       if (!pendingResume) return;
-      Store.replace(pendingResume);
+      Store.replace(pendingResume, { preserveUiLang: true });
       App.renderAll();
       pendingResume = null;
       backToSetup();

@@ -4,7 +4,8 @@ const BLANK_DATA = {
     accent: '#3d4a5c',
     font: 'serif',
     density: 'normal',
-    lang: 'en'
+    lang: 'en',
+    uiLang: 'en'
   },
   basics: {
     name: '',

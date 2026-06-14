@@ -157,7 +157,7 @@ const App = (function () {
     accentInput.value = Store.data.meta.accent || '#3d4a5c';
     fontSelect.value = Store.data.meta.font || 'serif';
     densitySelect.value = Store.data.meta.density || 'normal';
-    if (uiLangSelect) uiLangSelect.value = Store.data.meta.lang || 'en';
+    if (uiLangSelect) uiLangSelect.value = Store.data.meta.uiLang || 'en';
     updateActiveSwatch();
     applyUiLanguage();
   }
@@ -296,7 +296,7 @@ const App = (function () {
   }
 
   function currentLang() {
-    return (Store.data && Store.data.meta && Store.data.meta.lang === 'en') ? 'en' : 'zh';
+    return (Store.data && Store.data.meta && Store.data.meta.uiLang === 'en') ? 'en' : 'zh';
   }
 
   function text(key) {
@@ -1025,7 +1025,7 @@ const App = (function () {
     densitySelect.addEventListener('change', () => { Store.set('meta.density', densitySelect.value); renderPreview(); });
     if (uiLangSelect) {
       uiLangSelect.addEventListener('change', () => {
-        Store.set('meta.lang', uiLangSelect.value === 'en' ? 'en' : 'zh');
+        Store.set('meta.uiLang', uiLangSelect.value === 'en' ? 'en' : 'zh');
         rerenderAll();
       });
     }

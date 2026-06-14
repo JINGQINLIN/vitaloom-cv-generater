@@ -15,6 +15,9 @@ const Store = (function () {
     if (!['relaxed', 'normal', 'compact'].includes(base.meta.density)) base.meta.density = 'normal';
     if (!['serif', 'sans'].includes(base.meta.font)) base.meta.font = 'serif';
     if (!['zh', 'en'].includes(base.meta.lang)) base.meta.lang = 'en';
+    if (!['zh', 'en'].includes(base.meta.uiLang)) {
+      base.meta.uiLang = ['zh', 'en'].includes(base.meta.lang) ? base.meta.lang : 'en';
+    }
     base.basics = Object.assign(base.basics, data.basics || {});
     base.highlights = Array.isArray(data.highlights) ? data.highlights : [];
     base.links = Array.isArray(data.links) ? data.links : [];
@@ -79,8 +82,13 @@ const Store = (function () {
       }
     },
 
-    replace(data) {
+    replace(data, options) {
+      options = options || {};
+      const prevUiLang = options.preserveUiLang && this.data.meta ? this.data.meta.uiLang : null;
       this.data = normalize(data);
+      if (prevUiLang && ['zh', 'en'].includes(prevUiLang)) {
+        this.data.meta.uiLang = prevUiLang;
+      }
       this.save();
     },
 
