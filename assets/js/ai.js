@@ -621,36 +621,89 @@ const AI = (function () {
   }
 
   function providerSystemPrompt(outputLang) {
-    return `You are a professional resume editor. Return strict JSON only. For optimization and scoring, user-facing explanations must be in ${outputLang}. Do not treat language switching as an optimization suggestion.`;
+    return [
+      'You edit structured resume JSON for VitaLoom. Return valid JSON only—no markdown, no text outside JSON.',
+      '',
+      'Principles:',
+      '- Ground every judgment in the supplied JSON. Do not invent employers, schools, dates, metrics, awards, or credentials.',
+      '- Name, email, phone, location, website, avatar, and personal links may be omitted on purpose. Never treat that as a flaw or suggest adding them.',
+      '- Keep JSON keys, image data URLs, links, dates, and numbers unless the task explicitly rewrites prose.',
+      '- Translate and parse faithfully: natural, professional wording; preserve meaning without hype or compression.',
+      '- Optimize and score objectively: specific, balanced, evidence-based. Avoid generic praise, fear-mongering, or buzzwords.',
+      `- User-facing explanations (reason, summary, comments, dimension names) must be in ${outputLang}.`,
+      '- proposal text must stay in the same language as the original field. Switching resume language is not an optimization.'
+    ].join('\n');
   }
 
   function providerTaskPrompt(task, payload) {
     const resume = JSON.stringify(payload.data || {}, null, 2);
     const jd = payload.jobDescription ? '\n\nJob description:\n' + payload.jobDescription : '';
     const base = [
-      'Private identity/contact fields such as name, email, phone, address, website, avatar and personal links may be intentionally omitted. Do not penalize this.',
-      'Do not fabricate companies, schools, dates, awards, certificates, numbers, publications, patents or experiences.',
+      'The resume may omit private contact fields by design—do not penalize that.',
+      'Use only facts present in the input. Do not fabricate content.',
       'Resume JSON:\n' + resume + jd
     ].join('\n\n');
     if (task === 'translate') {
       const langCode = payload.targetLang === 'English' ? 'en' : 'zh';
-      return base + `\n\nTask: translate the resume to ${payload.targetLang}. Translate natural-language resume content only. Keep JSON keys unchanged. Set resume.meta.lang to "${langCode}". Do not optimize, score, suggest, or add new facts. Return exactly: {"resume": <full translated resume JSON>}`;
+      return [
+        base,
+        '',
+        `Task: translate natural-language resume content into ${payload.targetLang}.`,
+        '- Keep all JSON keys unchanged.',
+        '- Translate names, titles, summaries, bullets, labels, and descriptions with idiomatic, professional phrasing.',
+        '- Preserve facts, scope, and tone. Do not add, delete, optimize, or soften/strengthen claims.',
+        '- Keep proper nouns (company/product names) accurate; transliterate or keep original when conventional.',
+        `- Set resume.meta.lang to "${langCode}".`,
+        'Return exactly: {"resume": <full translated resume JSON>}'
+      ].join('\n');
     }
     if (task === 'fill') {
       return [
-        `Current UI language: ${payload.outputLang}.`,
-        'Task: parse the plain resume text below into the resume JSON schema.',
-        'Use only facts explicitly present in the text. Do not invent missing dates, schools, employers, numbers, awards, certificates, or contact details.',
-        'Keep JSON keys compatible with the current resume schema: meta, basics, links, highlights, experience, education, projects, skills, languages, awards, certificates, publications, activities, socialWork, notes.',
+        `UI language: ${payload.outputLang}.`,
+        'Task: parse the plain resume text into the VitaLoom resume JSON schema.',
+        'Rules:',
+        '- Extract only information explicitly stated in the text.',
+        '- Use clear, neutral professional phrasing. Split bullet-like lines into description fields where appropriate.',
+        '- Do not guess missing dates, employers, schools, numbers, awards, certificates, or contact details.',
+        '- Leave uncertain fields as empty strings or empty arrays.',
+        'Schema keys: meta, basics, links, highlights, experience, education, projects, skills, languages, awards, certificates, publications, activities, socialWork, notes.',
         `Set resume.meta.lang to "${payload.outputLang === 'English' ? 'en' : 'zh'}".`,
         'Return exactly: {"resume": <full parsed resume JSON>}',
-        '\nPlain resume text:\n' + (payload.rawText || '')
+        '',
+        'Plain resume text:',
+        payload.rawText || ''
       ].join('\n');
     }
     if (task === 'optimize') {
-      return base + `\n\nTask: give item-by-item resume optimization suggestions. This is not translation. Never suggest changing the resume language. section/reason/priority must use ${payload.outputLang}. original must quote the original field. proposal must be a directly replaceable rewrite in the same language as original. Return 3 to 8 concrete suggestions if possible. Use real dot paths from the JSON. Return exactly: {"suggestions":[{"path":"experience.0.description","section":"Experience","original":"original field text","proposal":"same-language replacement text","reason":"reason in ${payload.outputLang}","priority":"high|medium|low"}]}`;
+      return [
+        base,
+        '',
+        'Task: suggest field-level resume improvements. This is not translation.',
+        'Rules:',
+        `- Write section, reason, and priority labels for the user in ${payload.outputLang}.`,
+        '- One suggestion per real dot path in the JSON (e.g. experience.0.description).',
+        '- original: verbatim excerpt from that field. proposal: a drop-in rewrite in the same language as original.',
+        '- Prefer concrete improvements: clearer structure, stronger evidence, tighter wording, better hierarchy, JD alignment when a job description is provided.',
+        '- Stay honest: do not invent metrics, tools, or outcomes. Do not recommend changes that alter factual meaning.',
+        '- Avoid clichés ("results-driven", "passionate") unless replacing weaker phrasing with substantiated detail.',
+        '- Return 3–8 suggestions when meaningful improvements exist; fewer is fine if the resume is already strong.',
+        '- Never suggest changing the resume language.',
+        'Return exactly: {"suggestions":[{"path":"experience.0.description","section":"Experience","original":"...","proposal":"...","reason":"...","priority":"high|medium|low"}]}'
+      ].join('\n');
     }
-    return base + '\n\nTask: score the resume' + (payload.jobDescription ? ' against the job description' : '') + `. All user-facing output must be ${payload.outputLang}. Do not suggest translating the resume. Be specific about strengths, weaknesses, and the highest priority improvements. Return exactly: {"score":85,"summary":"summary in ${payload.outputLang}","dimensions":[{"name":"Clarity","score":80,"comment":"comment in ${payload.outputLang}"},{"name":"Impact","score":80,"comment":"comment in ${payload.outputLang}"},{"name":"Role fit","score":80,"comment":"comment in ${payload.outputLang}"}],"quickWins":["suggestion in ${payload.outputLang}"],"risks":["risk in ${payload.outputLang}"]}`;
+    return [
+      base,
+      '',
+      'Task: score the resume' + (payload.jobDescription ? ' against the job description' : '') + '.',
+      'Rules:',
+      `- All user-facing text must be in ${payload.outputLang}.`,
+      '- Score only what is present. Be fair, specific, and calibrated—not flattering or harsh without cause.',
+      '- overall score 0–100: 85+ strong and ready with minor polish; 70–84 solid with clear gaps; 55–69 needs meaningful revision; below 55 major gaps.',
+      '- dimensions: Clarity (structure and readability), Impact (evidence and outcomes), Role fit' + (payload.jobDescription ? ' (alignment with the JD)' : ' (general professional positioning)') + '.',
+      '- quickWins: small, actionable edits grounded in the current content. risks: material gaps or weak presentation—not moral judgment.',
+      '- Do not suggest translating the resume.',
+      'Return exactly: {"score":85,"summary":"...","dimensions":[{"name":"...","score":80,"comment":"..."}],"quickWins":["..."],"risks":["..."]}'
+    ].join('\n');
   }
 
   function parseJsonContent(text) {

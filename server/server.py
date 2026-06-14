@@ -54,7 +54,7 @@ def parse_json_content(text):
 def task_prompt(task, body):
     target_lang = body.get("targetLang") or "English"
     resume = body.get("data") or {}
-    resume_lang = ((resume.get("meta") or {}).get("lang") or "zh").lower()
+    resume_lang = ((resume.get("meta") or {}).get("lang") or "en").lower()
     resume_lang_name = "英文" if resume_lang == "en" else "中文"
     output_lang = "English" if body.get("outputLang") == "English" else "Simplified Chinese"
     resume_json = json.dumps(resume, ensure_ascii=False, indent=2)
@@ -62,66 +62,84 @@ def task_prompt(task, body):
     jd_text = f"\nJob description:\n{jd}" if jd else ""
     base = "\n\n".join(
         [
-            "Input may intentionally omit private identity/contact fields such as name, email, phone, address, website and avatar. Do not penalize missing private contact fields and do not suggest adding them.",
-            "你是专业简历编辑。只返回合法 JSON，不要 Markdown，不要解释。",
-            "不得编造公司、学校、日期、奖项、证书、数字、论文、专利、出版物或任何不存在的经历。",
-            "除非当前任务明确要求改写文本，否则必须保留图片 data URL、链接、日期、数字和 JSON schema key。",
+            "简历可能刻意省略姓名、邮箱、电话、地址、网站、头像等隐私字段，不要因此扣分，也不要建议补全。",
+            "只依据输入内容工作，不得编造公司、学校、日期、数字、奖项、证书、论文、专利或经历。",
+            "除非任务明确要求改写文字，否则保留 JSON key、图片 data URL、链接、日期和数字。",
             f"简历 JSON:\n{resume_json}{jd_text}",
         ]
     )
 
     if task == "translate":
         lang_code = "en" if target_lang == "English" else "zh"
-        return (
-            f"{base}\n\n任务：翻译简历。\n"
-            "- 只翻译简历里的自然语言内容，包括姓名头衔、简介、经历描述、项目描述、技能、语言、奖项、证书、成果、活动、链接标签等。\n"
-            f'- 保持 JSON key 不变，但必须把 resume.meta.lang 设置为 "{lang_code}"，用于前端把简历板块标题切换成目标语言。\n'
-            "- 不要优化、不要评分、不要提出建议、不要新增内容。\n"
-            f"- 目标语言：{target_lang}。\n"
-            '返回格式必须是：{"resume": <翻译后的完整简历 JSON>}'
+        target_name = "英文" if target_lang == "English" else "简体中文"
+        return "\n".join(
+            [
+                base,
+                "",
+                f"任务：将简历中的自然语言内容翻译为{target_name}。",
+                "- 保持 JSON key 不变。",
+                "- 翻译姓名、头衔、简介、要点、标签和描述，用语自然、专业，符合目标语言习惯。",
+                "- 忠实传达事实、范围和语气，不增删信息，不优化或夸大/弱化表述。",
+                "- 公司名、产品名等专有名词译法准确；惯例保留原文时可保留原文。",
+                f'- 设置 resume.meta.lang 为 "{lang_code}"。',
+                "- 不要评分、不要提建议、不要新增内容。",
+                '返回格式：{"resume": <完整译文 JSON>}',
+            ]
         )
     if task == "fill":
         lang_code = "en" if output_lang == "English" else "zh"
-        return (
-            f"用户可见输出语言：{output_lang}。\n"
-            "任务：把用户粘贴的纯文本简历解析为本项目的完整 resume JSON。\n"
-            "只能使用文本中明确出现的信息，不得虚构公司、学校、日期、奖项、证书、数字、论文、专利或经历。\n"
-            "字段结构必须兼容当前简历 schema：meta, basics, links, highlights, experience, education, projects, skills, languages, awards, certificates, publications, activities, socialWork, notes。\n"
-            f"必须设置 resume.meta.lang 为 \"{lang_code}\"。\n"
-            "如果无法判断某个字段，留空字符串或空数组。\n"
-            "返回格式必须是：{\"resume\": <解析后的完整简历 JSON>}\n\n"
-            "纯文本简历：\n"
-            f"{body.get('rawText') or ''}"
+        return "\n".join(
+            [
+                f"界面语言：{output_lang}。",
+                "任务：将下方纯文本简历解析为 VitaLoom 的 resume JSON。",
+                "规则：",
+                "- 只提取文本中明确出现的信息。",
+                "- 表述清晰、中性、专业；条目型内容合理拆入 description 等字段。",
+                "- 不猜测缺失的日期、单位、学校、数字、奖项、证书或联系方式。",
+                "- 无法确定的字段留空字符串或空数组。",
+                "schema：meta, basics, links, highlights, experience, education, projects, skills, languages, awards, certificates, publications, activities, socialWork, notes。",
+                f'设置 resume.meta.lang 为 "{lang_code}"。',
+                '返回格式：{"resume": <完整 JSON>}',
+                "",
+                "纯文本简历：",
+                body.get("rawText") or "",
+            ]
         )
     if task == "optimize":
-        return (
-            f"{base}\n\n任务：逐项优化建议。\n"
-            f"当前简历主体语言：{resume_lang_name}。\n"
-            f"用户可见解释语言：{output_lang}。\n"
-            "硬性规则：\n"
-            "- 这是“优化建议”，不是翻译任务。严禁建议把简历翻译成另一种语言，严禁把英文简历改成中文，严禁把中文简历改成英文。\n"
-            f"- section、reason、priority 等解释性内容必须使用 {output_lang}。\n"
-            "- original 必须忠实摘录原字段；proposal 必须是可直接替换原字段的改写，并且必须保持该字段原本的语言。英文原文给英文 proposal，中文原文给中文 proposal。\n"
-            f"- 如果 original 是英文，proposal 中不得出现中文句子；解释原因时使用 {output_lang}。\n"
-            "- “输出语言”只表示解释建议原因和位置的语言，不表示把简历内容改写成该语言。\n"
-            "- 如果简历存在可改进内容，必须返回 3 到 8 条建议；不要因为语言约束而返回空 suggestions。\n"
-            "- 每条建议只针对一个可编辑字段，使用简历 JSON 中真实存在的 dot path。\n"
-            "- 重点关注含金量呈现、量化结果、信息层级、措辞精炼、岗位匹配，不要泛泛而谈。\n"
-            '返回格式必须是：{"suggestions":[{"path":"experience.0.description","section":"工作经历",'
-            f'"original":"original field text","proposal":"same-language replacement text","reason":"reason in {output_lang}","priority":"high|medium|low"}}]}}'
+        return "\n".join(
+            [
+                base,
+                "",
+                "任务：给出逐字段优化建议（不是翻译）。",
+                f"当前简历主体语言：{resume_lang_name}。面向用户的 section、reason 使用 {output_lang}。",
+                "规则：",
+                "- 每条建议对应 JSON 中一个真实 dot path（如 experience.0.description）。",
+                "- original 为该字段原文摘录；proposal 为可直接替换的改写，且必须与 original 同语言。",
+                "- 优先改进：结构更清晰、证据更具体、措辞更精炼、层级更合理；如有 JD，兼顾岗位匹配。",
+                "- 保持客观：不虚构数据、工具或成果；不改变事实含义。",
+                "- 避免空泛套话；若替换，应给出更有信息量的表述。",
+                "- 有实质改进空间时给出 3–8 条；若整体已较好，可少于 3 条。",
+                "- 严禁建议切换简历语言。",
+                '返回格式：{"suggestions":[{"path":"experience.0.description","section":"工作经历","original":"...","proposal":"...","reason":"...","priority":"high|medium|low"}]}',
+            ]
         )
     if task == "score":
-        scope = "，并结合岗位 JD 判断匹配度" if jd else ""
-        return (
-            f"{base}\n\n任务：简历评分{scope}。\n"
-            f"用户可见输出语言：{output_lang}。\n"
-            "硬性规则：\n"
-            f"- 整个 JSON 中除字段名 key 和必要专有名词外，所有用户可见内容必须使用 {output_lang}。\n"
-            "- 不要提出翻译类建议；尤其不要建议把英文简历改成中文，也不要建议把中文简历改成英文。\n"
-            "- 评分要具体指出当前简历的强项、弱项和最值得先改的地方。\n"
-            f'返回格式必须是：{{"score":85,"summary":"summary in {output_lang}","dimensions":[{{"name":"Clarity",'
-            f'"score":80,"comment":"comment in {output_lang}"}},{{"name":"Impact","score":80,"comment":"comment in {output_lang}"}},'
-            f'{{"name":"Role fit","score":80,"comment":"comment in {output_lang}"}}],"quickWins":["suggestion in {output_lang}"],"risks":["risk in {output_lang}"]}}'
+        scope = "，并结合岗位 JD 评估匹配度" if jd else ""
+        role_fit = "（与 JD 的契合度）" if jd else "（整体职业定位）"
+        return "\n".join(
+            [
+                base,
+                "",
+                f"任务：对简历进行客观评分{scope}。",
+                f"所有面向用户的文字使用 {output_lang}。",
+                "规则：",
+                "- 只评价现有内容，公正、具体、有依据，不空夸也不无依据苛责。",
+                "- 总分 0–100：85+ 整体扎实、仅需微调；70–84 可用但有明显短板；55–69 需较大幅度修改；55 以下信息或表达缺口较大。",
+                f"- 维度：清晰度（结构与可读性）、影响力（证据与成果）、岗位匹配{role_fit}。",
+                "- quickWins：基于当前内容、可立即执行的小改动。risks：实质性缺口或表达薄弱点，不作道德评判。",
+                "- 不要建议翻译简历。",
+                '返回格式：{"score":85,"summary":"...","dimensions":[{"name":"...","score":80,"comment":"..."}],"quickWins":["..."],"risks":["..."]}',
+            ]
         )
     raise ValueError("Unknown AI task.")
 
@@ -140,7 +158,7 @@ def call_ai(task, body):
         "messages": [
             {
                 "role": "system",
-                "content": "你为简历生成器输出严格 JSON。除翻译任务外，解释、原因、评分等用户可见说明必须使用请求中的 outputLang；但可直接替换到简历里的 proposal 必须保持原字段语言。不得把切换语言当作优化建议。",
+                "content": "你为 VitaLoom 简历编辑器输出严格 JSON，不要 Markdown，不要 JSON 外的说明。只依据输入内容判断；不编造事实；隐私字段缺失不算问题。优化与评分应具体、平衡、客观；proposal 必须与原字段同语言；不要把切换语言当作优化建议。解释性文字使用请求中的 outputLang。",
             },
             {"role": "user", "content": task_prompt(task, body)},
         ],
