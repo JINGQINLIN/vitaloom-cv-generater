@@ -52,6 +52,25 @@ function withProto(url) {
   return /^https?:\/\//i.test(url) ? url : 'https://' + url;
 }
 
+const INLINE_URL_RE = /(https?:\/\/[^\s<>"']+|(?:[a-z0-9][-a-z0-9]*\.)+(?:com|io|dev|org|net|cn|co|me|edu)(?:\/[^\s<>"']*)?)/gi;
+
+function linkifyText(text) {
+  const raw = String(text || '');
+  if (!raw) return '';
+  let html = '';
+  let last = 0;
+  let match;
+  INLINE_URL_RE.lastIndex = 0;
+  while ((match = INLINE_URL_RE.exec(raw)) !== null) {
+    html += esc(raw.slice(last, match.index));
+    const url = match[0];
+    html += `<a class="text-link" href="${esc(withProto(url))}" target="_blank" rel="noopener">${esc(url)}</a>`;
+    last = match.index + url.length;
+  }
+  html += esc(raw.slice(last));
+  return html;
+}
+
 
 const ICONS = {
   phone: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>',
@@ -157,7 +176,7 @@ function certEntry(it) {
 }
 
 function blkSummary(d) {
-  return d.basics.summary ? section(labelOf(d, 'summary'), `<p class="summary">${esc(d.basics.summary)}</p>`, 'sec-summary', 'summary') : '';
+  return d.basics.summary ? section(labelOf(d, 'summary'), `<p class="summary">${linkifyText(d.basics.summary)}</p>`, 'sec-summary', 'summary') : '';
 }
 function blkHighlights(d) {
   const items = d.highlights || [];
@@ -688,7 +707,7 @@ function render_portfolio(d) {
       ${avatarHTML(b, 'pf-avatar')}
       <div class="pf-kicker">${esc(b.title || 'Portfolio Resume')}</div>
       <h1 class="pf-name">${nameOf(d)}</h1>
-      ${b.summary ? `<p class="pf-summary">${esc(b.summary)}</p>` : ''}
+      ${b.summary ? `<p class="pf-summary">${linkifyText(b.summary)}</p>` : ''}
       <div class="pf-contact">${contactRows(d)}</div>
       ${blkSkills(d, 'tags')}
     </aside>

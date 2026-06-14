@@ -151,7 +151,7 @@ const App = (function () {
     return selector ? resumeEl.querySelector(selector) : null;
   }
 
-  function renderPageNumbers(pages) {
+  function renderPageNumbers(pages, pageHeight) {
     let box = resumeEl.querySelector('.resume-page-nums');
     if (!box) {
       box = document.createElement('div');
@@ -161,11 +161,13 @@ const App = (function () {
     }
     box.innerHTML = '';
     if (pages <= 1) return;
+    const height = pageHeight || pages * PAGE_H;
     for (let i = 0; i < pages; i++) {
       const el = document.createElement('span');
       el.className = 'resume-page-num';
       el.textContent = `${i + 1} / ${pages}`;
-      el.style.top = `${(i + 1) * PAGE_H - PAGE_NUM_BOTTOM}px`;
+      const pageBottom = Math.min((i + 1) * PAGE_H, height);
+      el.style.top = `${pageBottom - PAGE_NUM_BOTTOM}px`;
       box.appendChild(el);
     }
   }
@@ -173,19 +175,24 @@ const App = (function () {
   function syncResumePageLayout() {
     if (!resumeEl) return;
     resumeEl.style.minHeight = '';
+    resumeEl.style.removeProperty('--resume-min-h');
     const wrap = sidePanelWrap();
     if (wrap) wrap.style.minHeight = '';
 
     requestAnimationFrame(() => {
-      const trueH = resumeEl.scrollHeight;
-      const pages = Math.max(1, Math.ceil(trueH / PAGE_H));
+      const contentH = resumeEl.scrollHeight;
+      const pages = Math.max(1, Math.ceil(contentH / PAGE_H));
       const paddedH = pages * PAGE_H;
-      if (paddedH > trueH) {
+      resumeEl.style.setProperty('--resume-min-h', `${paddedH}px`);
+      resumeEl.style.setProperty('--resume-pages', String(pages));
+      if (paddedH > contentH) {
         resumeEl.style.minHeight = `${paddedH}px`;
         if (wrap) wrap.style.minHeight = `${paddedH}px`;
       }
-      renderPageNumbers(pages);
-      updatePageInfo(pages);
+      requestAnimationFrame(() => {
+        renderPageNumbers(pages, paddedH);
+        updatePageInfo(pages);
+      });
     });
   }
 
@@ -1052,9 +1059,23 @@ const App = (function () {
     });
     document.getElementById('btnPrint').addEventListener('click', () => {
       const prev = document.title;
-      document.title = (Store.data.basics.name || '简历').trim() + ' · 简历';
-      window.print();
-      setTimeout(() => { document.title = prev; }, 600);
+      const aiPanel = document.querySelector('.ai-panel');
+      const hadAiOpen = !!(aiPanel && aiPanel.classList.contains('show'));
+      const hadAiDocked = document.body.classList.contains('ai-docked');
+      document.body.classList.add('printing');
+      if (aiPanel) aiPanel.classList.remove('show');
+      document.body.classList.remove('ai-docked');
+      syncResumePageLayout();
+      setTimeout(() => {
+        document.title = (Store.data.basics.name || '简历').trim() + ' · 简历';
+        window.print();
+        setTimeout(() => {
+          document.title = prev;
+          document.body.classList.remove('printing');
+          if (hadAiOpen && aiPanel) aiPanel.classList.add('show');
+          if (hadAiDocked) document.body.classList.add('ai-docked');
+        }, 600);
+      }, 120);
     });
 
     window.onStoreSaveError = () => toast('内容体积较大，已超出浏览器本地存储上限，未能自动保存。请点「导出」备份为 JSON，并适当减少 / 压缩图片。');
@@ -1086,7 +1107,7 @@ const App = (function () {
     return !!editorHidden;
   }
 
-  return { init, renderPreview, renderAll: rerenderAll, scrollPreviewToSection, scrollPreviewToPath, currentLang, isEditorHidden };
+  return { init, renderPreview, renderAll: rerenderAll, scrollPreviewToSection, scrollPreviewToPath, currentLang, isEditorHidden, syncResumePageLayout };
 })();
 
 document.addEventListener('DOMContentLoaded', App.init);

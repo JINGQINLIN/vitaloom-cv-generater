@@ -1857,3 +1857,32 @@ body.ai-docked .ai-panel {
   .profile-part-grid { grid-template-columns: 1fr; }
   .page-scroll { padding: 14px; }
 }
+
+@media print {
+  .toolbar,
+  .editor-pane,
+  .splitter,
+  .preview-toolbar,
+  .ai-panel,
+  .ai-config-modal,
+  .ai-privacy-modal,
+  .profile-modal,
+  .settings-modal,
+  .toast {
+    display: none !important;
+  }
+  body.ai-docked .workspace {
+    display: block !important;
+    grid-template-columns: none !important;
+    grid-template-rows: none !important;
+  }
+  body.ai-docked .workspace .preview-pane {
+    display: block !important;
+    width: 100% !important;
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+  body.printing .ai-panel {
+    display: none !important;
+  }
+}

@@ -621,14 +621,27 @@ const AI = (function () {
   }
 
   function currentYearContextLines() {
-    const year = new Date().getFullYear();
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const day = now.getDate();
     return [
-      `当前日期语境：今天是 ${year} 年。`,
+      `当前日期语境：今天是 ${year} 年 ${month} 月 ${day} 日。`,
       '日期判断规则：',
       '- 结束时间写「至今」「现在」「present」「current」「Now」或留空，表示仍在进行，不是未来时间，也不是错误。',
-      `- 起始年为 ${year} 且结束为「至今」或等效表述，表示当前在职/在读，完全合理。`,
-      '- 不要把「YYYY-至今」在起始年≤当前年时判为时间冲突、未来时间或逻辑错误。',
+      `- 起始年为 ${year} 且结束为「至今」或等效表述，表示当前在职/在读/实习，完全合理。`,
+      '- 不要把「YYYY-至今」在起始年≤当前年时判为时间冲突、未来时间、需澄清或需招聘方额外理解的问题。',
       '- 只有明确晚于当前年的起止时间（如结束年在未来且无「至今」类表述）才可提示时间风险。'
+    ];
+  }
+
+  function scoringGuardrailLines() {
+    return [
+      '评分硬性禁令（违反则视为无效输出）：',
+      '- 不得因缺失姓名、邮箱、电话、地址、网站、头像、联系方式而扣分、降分、写入 summary/risks/quickWins/dimensions.comment，也不得建议补全。',
+      '- 不得把「隐私保护」或「基础信息缺失」列为风险点、主要扣分点或快速改进项。',
+      '- 不得质疑、提示澄清、或要求招聘方「理解」起始年≤当前年且结束为「至今」类表述的在读/在职/实习时间线。',
+      '- 不得将当前年份本身作为时间线问题；只评价已有经历内容的清晰度、影响力与岗位匹配。'
     ];
   }
 
@@ -644,7 +657,7 @@ const AI = (function () {
       '- Optimize and score objectively: specific, balanced, evidence-based. Avoid generic praise, fear-mongering, or buzzwords.',
       `- User-facing explanations (reason, summary, comments, dimension names) must be in ${outputLang}.`,
       '- proposal text must stay in the same language as the original field. Switching resume language is not an optimization.',
-      '- Date checks use the current calendar year from the task rules. "至今"/"present"/empty end means ongoing—not a future date or conflict when start year ≤ current year.'
+      '- For scoring: never penalize missing name/contact fields; never flag current-year ongoing date ranges (e.g. 2026–present) as risks or ask recruiters to "understand" the status.'
     ].join('\n');
   }
 
@@ -711,6 +724,7 @@ const AI = (function () {
       'Task: score the resume' + (payload.jobDescription ? ' against the job description' : '') + '.',
       'Rules:',
       ...currentYearContextLines(),
+      ...scoringGuardrailLines(),
       `- All user-facing text must be in ${payload.outputLang}.`,
       '- Score only what is present. Be fair, specific, and calibrated—not flattering or harsh without cause.',
       '- overall score 0–100: 85+ strong and ready with minor polish; 70–84 solid with clear gaps; 55–69 needs meaningful revision; below 55 major gaps.',

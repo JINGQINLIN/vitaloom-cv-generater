@@ -99,14 +99,27 @@ function parseJsonContent(text) {
 }
 
 function currentYearContext() {
-  const year = new Date().getFullYear();
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const day = now.getDate();
   return [
-    `当前日期语境：今天是 ${year} 年。`,
+    `当前日期语境：今天是 ${year} 年 ${month} 月 ${day} 日。`,
     '日期判断规则：',
     '- 结束时间写「至今」「现在」「present」「current」「Now」或留空，表示仍在进行，不是未来时间，也不是错误。',
-    `- 起始年为 ${year} 且结束为「至今」或等效表述，表示当前在职/在读，完全合理。`,
-    '- 不要把「YYYY-至今」在起始年≤当前年时判为时间冲突、未来时间或逻辑错误。',
+    `- 起始年为 ${year} 且结束为「至今」或等效表述，表示当前在职/在读/实习，完全合理。`,
+    '- 不要把「YYYY-至今」在起始年≤当前年时判为时间冲突、未来时间、需澄清或需招聘方额外理解的问题。',
     '- 只有明确晚于当前年的起止时间（如结束年在未来且无「至今」类表述）才可提示时间风险。'
+  ].join('\n');
+}
+
+function scoringGuardrails() {
+  return [
+    '评分硬性禁令（违反则视为无效输出）：',
+    '- 不得因缺失姓名、邮箱、电话、地址、网站、头像、联系方式而扣分、降分、写入 summary/risks/quickWins/dimensions.comment，也不得建议补全。',
+    '- 不得把「隐私保护」或「基础信息缺失」列为风险点、主要扣分点或快速改进项。',
+    '- 不得质疑、提示澄清、或要求招聘方「理解」起始年≤当前年且结束为「至今」类表述的在读/在职/实习时间线。',
+    '- 不得将当前年份（如 2026 年）本身作为时间线问题；只评价已有经历内容的清晰度、影响力与岗位匹配。'
   ].join('\n');
 }
 
@@ -184,6 +197,7 @@ function taskPrompt(task, body) {
       `所有面向用户的文字使用 ${outputLang}。`,
       '规则：',
       currentYearContext(),
+      scoringGuardrails(),
       '- 只评价现有内容，公正、具体、有依据，不空夸也不无依据苛责。',
       '- 总分 0–100：85+ 整体扎实、仅需微调；70–84 可用但有明显短板；55–69 需较大幅度修改；55 以下信息或表达缺口较大。',
       '- 维度：清晰度（结构与可读性）、影响力（证据与成果）、岗位匹配' + (body.jobDescription ? '（与 JD 的契合度）' : '（整体职业定位）') + '。',
@@ -210,7 +224,7 @@ async function callAI(task, body) {
     temperature: task === 'score' ? 0.2 : 0.35,
     enable_thinking: false,
     messages: [
-      { role: 'system', content: '你为 VitaLoom 简历编辑器输出严格 JSON，不要 Markdown，不要 JSON 外的说明。只依据输入内容判断；不编造事实；隐私字段缺失不算问题。优化与评分应具体、平衡、客观；proposal 必须与原字段同语言；不要把切换语言当作优化建议。解释性文字使用请求中的 outputLang。日期判断以提示中的当前年份为准；「至今」「present」表示进行中，起始年等于当前年时不是未来时间或时间冲突。' },
+      { role: 'system', content: '你为 VitaLoom 简历编辑器输出严格 JSON，不要 Markdown，不要 JSON 外的说明。只依据输入内容判断；不编造事实。评分与优化时：缺失姓名/联系方式绝不扣分或列为风险；「至今」「present」且起始年≤当前年的时间线完全合法，不得要求澄清。解释性文字使用请求中的 outputLang；proposal 必须与原字段同语言；不要把切换语言当作优化建议。' },
       { role: 'user', content: taskPrompt(task, body) }
     ],
     response_format: { type: 'json_object' }
